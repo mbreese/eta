@@ -20,3 +20,8 @@ Or, file based usage (calls tell() to get progress)
         eta.print_status(extra="extra message")
         ...
     eta.done()
+
+The output is something similar to:
+
+    20.0% - 0:04 [====>               ] ETA: 0:17 (Optional messages go here)
+
