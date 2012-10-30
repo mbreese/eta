@@ -7,7 +7,7 @@ setup(name='eta',
       description='ETA Progress bar for command-line utilities',
       author='Marcus Breese',
       author_email='marcus@breese.com',
-      url='http://githum.com/mbreese/eta/',
+      url='http://github.com/mbreese/eta/',
       packages=['eta'],
      )
 
