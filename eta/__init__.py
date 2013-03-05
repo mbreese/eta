@@ -18,7 +18,7 @@ import os
 def eta_open_iter(fname, callback=None):
     f = open(fname)  # not using with to support 2.4
     _eta = ETA(os.stat(fname).st_size, fileobj=f)
-    extra = None
+    extra = ''
     for line in f:
         if callback:
             extra = callback()
