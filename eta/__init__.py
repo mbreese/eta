@@ -69,10 +69,10 @@ class _ETA(object):
             return float(current) / self.total
         return 1
 
-    def ave_remaining(self, current):
+    def ave_remaining(self, current, elapsed_sec):
         if len(self.last) > self.window:
             self.last = self.last[-self.window:]
-        rem = self.remaining(current)
+        rem = self.remaining(current, elapsed_sec)
         if rem:
             self.last.append(rem)
 
@@ -85,15 +85,15 @@ class _ETA(object):
         else:
             return None
 
-    def remaining(self, current):
-        elapsed = (datetime.datetime.now() - self.started).seconds
+    def remaining(self, current, elapsed_sec):
+        # elapsed = (datetime.datetime.now() - self.started).seconds
         pct = self.pct(current)
         if pct > 0:
             eta = elapsed / self.pct(current)
         else:
             return None
 
-        remaining = eta - elapsed
+        remaining = eta - elapsed_sec
         return remaining
 
     def pretty_time(self, secs):
@@ -136,19 +136,22 @@ class _ETA(object):
         if self.modulo and self.i % self.modulo > 0:
             return
 
-        if not self._started:
-            self._started = datetime.datetime.now()
-            elapsed_sec = 0
-        else:
-            elapsed_sec = (datetime.datetime.now() - self.started).seconds
+        now = datetime.datetime.now()
 
         if self._last_update:
-            elapsed = (datetime.datetime.now() - self._last_update)
+            elapsed = (now - self._last_update)
             millis = (elapsed.seconds * 1000) + (elapsed.microseconds / 1000)
             if millis < self.min_ms_between_updates:
                 return
 
-        self._last_update = datetime.datetime.now()
+        self._last_update = now
+
+        if not self._started:
+            self._started = now
+            elapsed_sec = 0
+        else:
+            td = now - self.started
+            elapsed_sec = (td.days * 86400) + td.seconds
 
         if current is None:
             if self.fileobj:
@@ -179,7 +182,7 @@ class _ETA(object):
                                          self.spinner[self.spinner_pos],
                                          self.pretty_time(elapsed_sec),
                                          prog_bar,
-                                         self.pretty_time(self.ave_remaining(current)),
+                                         self.pretty_time(self.ave_remaining(current, elapsed_sec)),
                                          extra)
         width, height = getTerminalSize()
         if len(line) > width:
