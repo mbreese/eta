@@ -89,7 +89,7 @@ class _ETA(object):
         # elapsed = (datetime.datetime.now() - self.started).seconds
         pct = self.pct(current)
         if pct > 0:
-            eta = elapsed / self.pct(current)
+            eta = elapsed_sec / self.pct(current)
         else:
             return None
 
