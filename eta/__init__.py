@@ -108,11 +108,9 @@ class _ETA(object):
             return ""
 
         if secs > 60:
-            mins = secs / 60
-            secs = secs % 60
+            mins, secs = divmod(secs, 60)
             if mins > 60:
-                hours = mins / 60
-                mins = mins % 60
+                hours, mins = divmod(mins, 60)
             else:
                 hours = 0
         else:
