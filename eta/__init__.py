@@ -40,7 +40,7 @@ class _NoopETA(object):
 
 
 class _ETA(object):
-    def __init__(self, total, modulo=None, fileobj=None, window=50, step=1, prog_bar_length=20, min_ms_between_updates=200):
+    def __init__(self, total, modulo=None, fileobj=None, window=50, step=1, prog_bar_length=20, min_ms_between_updates=None):
         self.started = datetime.datetime.now()
         self.last = []
         self.total = total
@@ -60,7 +60,14 @@ class _ETA(object):
         self.last_step = 0
         self.window = window
         self.prog_bar_length = prog_bar_length
-        self.min_ms_between_updates = min_ms_between_updates  # in milliseconds
+        
+        if min_ms_between_updates is not None:
+            self.min_ms_between_updates = min_ms_between_updates  # in milliseconds
+        elif sys.stderr.isatty():
+            self.min_ms_between_updates = 200
+        else:
+            self.min_ms_between_updates = 10000
+
         self._last_update = 0
         self._started = 0
 
@@ -234,6 +241,8 @@ def getTerminalSize():
     return int(cr[1]), int(cr[0])
 
 if 'HIDE_ETA' in os.environ:
+    ETA = _NoopETA
+elif not sys.stderr.isatty() and 'SHOW_ETA' not in os.environ:
     ETA = _NoopETA
 else:
     ETA = _ETA
