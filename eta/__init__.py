@@ -144,8 +144,13 @@ class _SocketETA(object):
         else:
             est_remaining = pretty_time((elapsed_sec / pct) - elapsed_sec)
 
+        if 'JOB_ID' in os.environ:
+            jobid = 'Job ID   : %s\n' % os.environ['JOB_ID']
+        else:
+            jobid = None
+
         return """\
-Command  : %s
+%sCommand  : %s
 
 Started  : %s
 Elapsed  : %s
@@ -154,7 +159,7 @@ Remaining: %s
 Total    : %s
 Current  : %s (%.2f%%)
 %s
-""" % (' '.join(sys.argv), self.started, elapsed_time, est_remaining, self.total, self.current, pct*100, '\n%s' % self.extra if self.extra else '')
+""" % (jobid if jobid else '', ' '.join(sys.argv), self.started, elapsed_time, est_remaining, self.total, self.current, pct*100, '\n%s' % self.extra if self.extra else '')
 
 
 class _ETA(object):
