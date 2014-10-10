@@ -14,6 +14,9 @@ import sys
 import datetime
 import os
 
+import threading
+import socket
+
 
 def eta_open_iter(fname, callback=None):
     f = open(fname)  # not using with to support 2.4
@@ -37,6 +40,112 @@ class _NoopETA(object):
 
     def print_status(self, *args, **kwargs):
         pass
+
+
+class _SocketETA(object):
+    def __init__(self, total, modulo=None, fileobj=None, *args, **kwargs):
+        self.total = total
+        self.started = 0
+        self.elapsed = 0
+        self.extra = ''
+        self.current = 0
+        self.last_step = 0
+        self.end = False
+
+        try:
+            fileobj.fileobj.tell()
+            self.fileobj = fileobj.fileobj
+        except:
+            self.fileobj = fileobj
+
+        self._sock = None
+        self._t = threading.Thread(target=self._start_listener, args = ())
+        self._t.daemon = True
+        self._t.start()
+
+        self._shutdown = False
+
+    def _start_listener(self):
+        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        socket_fname = "/tmp/eta-%s" % os.getpid()
+        try:
+            os.remove(socket_fname)
+        except OSError:
+            pass
+        
+        self._sock.bind(socket_fname)
+        self._sock.listen(1)
+
+        try:
+            while not self._shutdown:
+                conn, addr = self._sock.accept()
+                conn.sendall(self.get_status())
+                conn.close()
+        except:
+            pass
+
+        try:
+            os.remove(socket_fname)
+        except OSError:
+            pass
+
+    def done(self):
+        self._shutdown = True
+        if self._sock:
+            try:
+                self._sock.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+            self._sock.close()
+        if self._t:
+            self._t.join(30)
+
+    def print_status(self, current=None, extra='', *args, **kwargs):
+        self.current = current
+        self.extra = extra
+
+        if self.started == 0:
+            now = datetime.datetime.now()
+            self.started = now
+            self.elapsed = 0
+
+        if current is None:
+            if self.fileobj:
+                current = self.fileobj.tell()
+            else:
+                current = self.last_step + self.step
+
+        self.last_step = current
+
+    def get_status(self):
+        now = datetime.datetime.now()
+        td = now - self.started
+        elapsed_sec = (td.days * 86400) + td.seconds
+
+        if elapsed_sec < 0:
+            elapsed_sec = 0
+
+        elapsed_time = pretty_time(elapsed_sec)
+
+        pct = float(self.current) / self.total
+        if pct > 1.0:
+            pct = 1.0
+        
+        if pct < 0:
+            est_remaining = 'Unknown'
+        else:
+            est_remaining = pretty_time((elapsed_sec / pct) - elapsed_sec)
+
+        return """\
+Started  : %s
+Elapsed  : %s
+Remaining: %s
+
+Total  : %s
+Current: %s (%.2f%%)
+%s
+""" % (self.started, elapsed_time, est_remaining, self.total, self.current, pct*100, '\n%s' % self.extra if self.extra else '')
 
 
 class _ETA(object):
@@ -103,29 +212,6 @@ class _ETA(object):
         remaining = eta - elapsed_sec
         return remaining
 
-    def pretty_time(self, secs):
-        if secs is None:
-            return ""
-
-        if secs > 60:
-            mins, secs = divmod(secs, 60)
-            if mins > 60:
-                hours, mins = divmod(mins, 60)
-            else:
-                hours = 0
-        else:
-            mins = 0
-            hours = 0
-
-        if hours:
-            s = "%d:%02d:%02d" % (hours, mins, secs)
-        elif mins:
-            s = "%d:%02d" % (mins, secs)
-        else:
-            s = "0:%02d" % secs
-
-        return s
-
     def done(self, overwrite=True):
         if overwrite:
             sys.stderr.write('\r')
@@ -133,7 +219,7 @@ class _ETA(object):
             sys.stderr.write('\b' * self.last_len)
 
         elapsed = (datetime.datetime.now() - self.started).seconds
-        sys.stderr.write("Done! (%s)\n" % self.pretty_time(elapsed))
+        sys.stderr.write("Done! (%s)\n" % pretty_time(elapsed))
         sys.stderr.flush()
 
     def print_status(self, current=None, extra='', overwrite=True):
@@ -185,9 +271,9 @@ class _ETA(object):
 
         line = "%6.1f%% %s %s %sETA: %s%s" % (pct_current * 100,
                                          self.spinner[self.spinner_pos],
-                                         self.pretty_time(elapsed_sec),
+                                         pretty_time(elapsed_sec),
                                          prog_bar,
-                                         self.pretty_time(self.ave_remaining(current, elapsed_sec)),
+                                         pretty_time(self.ave_remaining(current, elapsed_sec)),
                                          extra)
         width, height = getTerminalSize()
         if len(line) > width:
@@ -203,6 +289,33 @@ class _ETA(object):
         if self.spinner_pos > 3:
             self.spinner_pos = 0
         sys.stderr.flush()
+
+
+def pretty_time(secs):
+    if secs is None:
+        return ""
+
+    if secs > 60:
+        mins, secs = divmod(secs, 60)
+        if mins > 60:
+            hours, mins = divmod(mins, 60)
+        else:
+            hours = 0
+    else:
+        mins = 0
+        hours = 0
+
+    if hours:
+        s = "%d:%02d:%02d" % (hours, mins, secs)
+    elif mins:
+        s = "%d:%02d" % (mins, secs)
+    else:
+        s = "0:%02d" % secs
+
+    return s
+
+
+
 
 #
 # getTerminalSize from StackOverflow:
@@ -238,8 +351,11 @@ def getTerminalSize():
 
     return int(cr[1]), int(cr[0])
 
+
 if 'HIDE_ETA' in os.environ:
     ETA = _NoopETA
+elif 'SOCKET_ETA' in os.environ:
+    ETA = _SocketETA
 elif not sys.stderr.isatty() and 'SHOW_ETA' not in os.environ:
     ETA = _NoopETA
 else:
