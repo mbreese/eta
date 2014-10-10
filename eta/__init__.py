@@ -59,6 +59,7 @@ class _SocketETA(object):
             self.fileobj = fileobj
 
         self._sock = None
+        self._t = None
         self.start()
 
     def start(self):
