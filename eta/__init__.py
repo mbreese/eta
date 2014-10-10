@@ -136,14 +136,18 @@ class _SocketETA(object):
         else:
             current = self.current
 
-        pct = float(current) / self.total
-        if pct > 1.0:
-            pct = 1.0
-        
-        if pct < 0:
-            est_remaining = 'Unknown'
+        if current:
+            pct = float(current) / self.total
+            if pct > 1.0:
+                pct = 1.0
+            
+            if pct < 0:
+                est_remaining = 'Unknown'
+            else:
+                est_remaining = pretty_time((elapsed_sec / pct) - elapsed_sec)
         else:
-            est_remaining = pretty_time((elapsed_sec / pct) - elapsed_sec)
+            pct = 0
+            est_remaining = 'Unknown'
 
         if 'JOB_ID' in os.environ:
             jobid = 'Job ID   : %s\n' % os.environ['JOB_ID']
