@@ -33,6 +33,11 @@ To hide the progress bar (for use in other batch scripts), you can hide the
 progress bar by setting the environmental variable 'HIDE_ETA'.
 
 The default is to update the progress bar every 0.2 sec, unless we aren't
-attached to a tty (and SHOW_ETA is set). In this case, the progress updates
-every 10 seconds. 
+attached to a tty (and SHOW_ETA is set). If we aren't attached to a TTY, then
+no status messages are output to stderr at all.
 
+There is also a socket based ETA implementation that will listen to the file
+/tmp/eta-$pid. If you try to read this file, it will display all of the relevant
+ETA information for the current process. You can (obviously) only have one active
+Socket ETA object for each process.  You can start this ETA object by setting
+an environmental variable 'SOCKET_ETA'.
