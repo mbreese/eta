@@ -160,7 +160,7 @@ Remaining: %s
 Total    : %s
 Current  : %s (%.2f%%)
 %s
-""" % (jobid if jobid else '', ' '.join(sys.argv), self.started, elapsed_time, est_remaining, self.total, self.current, pct*100, '\n%s' % self.extra if self.extra else '')
+""" % (jobid if jobid else '', ' '.join(sys.argv), self.started, elapsed_time, est_remaining, self.total, current, pct*100, '\n%s' % self.extra if self.extra else '')
 
 
 class _ETA(object):
