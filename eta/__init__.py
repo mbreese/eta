@@ -59,11 +59,15 @@ class _SocketETA(object):
             self.fileobj = fileobj
 
         self._sock = None
-        self._t = threading.Thread(target=self._start_listener, args = ())
-        self._t.daemon = True
-        self._t.start()
+        self.start()
 
-        self._shutdown = False
+    def start(self):
+        if not self._t and not self._sock:
+            self._t = threading.Thread(target=self._start_listener, args = ())
+            self._t.daemon = True
+            self._t.start()
+
+            self._shutdown = False
 
     def _start_listener(self):
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -98,8 +102,10 @@ class _SocketETA(object):
             except:
                 pass
             self._sock.close()
+            self._sock = None
         if self._t:
             self._t.join(30)
+            self._t = None
 
     def print_status(self, current=None, extra='', *args, **kwargs):
         self.current = current
@@ -110,13 +116,9 @@ class _SocketETA(object):
             self.started = now
             self.elapsed = 0
 
-        if current is None:
-            if self.fileobj:
-                current = self.fileobj.tell()
-            else:
-                current = self.last_step + self.step
-
-        self.last_step = current
+        if self.current is None and not self.fileobj:
+            self.current = self.last_step + self.step
+            self.last_step = self.current
 
     def get_status(self):
         now = datetime.datetime.now()
@@ -128,7 +130,12 @@ class _SocketETA(object):
 
         elapsed_time = pretty_time(elapsed_sec)
 
-        pct = float(self.current) / self.total
+        if self.current is None and self.fileobj:
+            current = self.fileobj.tell()
+        else:
+            current = self.current
+
+        pct = float(current) / self.total
         if pct > 1.0:
             pct = 1.0
         
