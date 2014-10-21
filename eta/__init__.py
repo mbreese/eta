@@ -73,7 +73,11 @@ class _SocketETA(object):
     def _start_listener(self):
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        socket_fname = "/tmp/eta-%s" % os.getpid()
+        if os.environ['SOCKET_ETA'] == '1':
+            socket_fname = "/tmp/eta-%s" % os.getpid()
+        else:
+            socket_fname = os.environ['SOCKET_ETA']
+
         try:
             os.remove(socket_fname)
         except OSError:
